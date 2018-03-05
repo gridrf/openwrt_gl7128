@@ -1,0 +1,24 @@
+{
+	"server":{
+		"gateway_id":"",
+		"server_address":"127.0.0.1",
+		"serv_port_up":1680,
+		"serv_port_down":1780,
+		"is_public_network":0,
+		"keepalive_interval":30000
+	},
+	"radio":{
+		"mode":"LORA",
+		"frequency":433175000,
+		"power":10,
+		"preamble":8,
+		"datarate":50000,
+		"fdev":25000,
+		"fsk_bandwidth":50000,
+		"afc_bandwidth":83333,
+		"bandwidth":0,
+		"spreading_factor":7,
+		"codingrate":1,
+		"tx_iqInverted":1
+	}	
+}

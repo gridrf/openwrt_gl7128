@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>LoRa Websocket Packetforwarder</title>
+        <meta name="author"    value="gsj0791@163.com" />
+        <meta name="robots"    value="none" />
+        <style type="text/css">
+            * { margin: 5px; }
+			ul{ margin:0; padding:0; text-align:left;}
+			li{ list-style:none;}
+        </style>
+    </head>
+    <script type="text/javascript">
+	///---
+			Date.prototype.format = function (format) {
+				var date = {
+					"M+": this.getMonth() + 1,
+					"d+": this.getDate(),
+					"h+": this.getHours(),
+					"m+": this.getMinutes(),
+					"s+": this.getSeconds(),
+					"q+": Math.floor((this.getMonth() + 3) / 3),
+					"S+": this.getMilliseconds()
+				};
+				if (/(y+)/i.test(format)) {
+				   format = format.replace(RegExp.$1, (this.getFullYear() + '').substr(4 - RegExp.$1.length));
+				}
+				for (var k in date) {
+					if (new RegExp("(" + k + ")").test(format)) {
+						format = format.replace(RegExp.$1, RegExp.$1.length == 1 ? date[k] : ("00" + date[k]).substr(("" + date[k]).length));
+					}
+				}
+				return format;
+			}
+			
+var Base64Binary = {
+	_keyStr : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+	
+	/* will return a  Uint8Array type */
+	decodeArrayBuffer: function(input) {
+		var bytes = (input.length/4) * 3;
+		var ab = new ArrayBuffer(bytes);
+		this.decode(input, ab);
+		
+		return ab;
+	},
+
+	removePaddingChars: function(input){
+		var lkey = this._keyStr.indexOf(input.charAt(input.length - 1));
+		if(lkey == 64){
+			return input.substring(0,input.length - 1);
+		}
+		return input;
+	},
+
+	decode: function (input, arrayBuffer) {
+		//get last chars to see if are valid
+		input = this.removePaddingChars(input);
+		input = this.removePaddingChars(input);
+
+		var bytes = parseInt((input.length / 4) * 3, 10);
+		
+		var uarray;
+		var chr1, chr2, chr3;
+		var enc1, enc2, enc3, enc4;
+		var i = 0;
+		var j = 0;
+		
+		if (arrayBuffer)
+			uarray = new Uint8Array(arrayBuffer);
+		else
+			uarray = new Uint8Array(bytes);
+		
+		input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+		
+		for (i=0; i<bytes; i+=3) {	
+			//get the 3 octects in 4 ascii chars
+			enc1 = this._keyStr.indexOf(input.charAt(j++));
+			enc2 = this._keyStr.indexOf(input.charAt(j++));
+			enc3 = this._keyStr.indexOf(input.charAt(j++));
+			enc4 = this._keyStr.indexOf(input.charAt(j++));
+	
+			chr1 = (enc1 << 2) | (enc2 >> 4);
+			chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+			chr3 = ((enc3 & 3) << 6) | enc4;
+	
+			uarray[i] = chr1;			
+			if (enc3 != 64) uarray[i+1] = chr2;
+			if (enc4 != 64) uarray[i+2] = chr3;
+		}
+	
+		return uarray;	
+	},
+	encode:function(input) {
+      var output = "";
+      var chr1, chr2, chr3 = "";
+      var enc1, enc2, enc3, enc4 = "";
+      var i = 0;
+
+      do {
+		 chr1 = input.charCodeAt(i++);
+         chr2 = input.charCodeAt(i++);
+         chr3 = input.charCodeAt(i++);
+
+         enc1 = chr1 >> 2;
+         enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+         enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+         enc4 = chr3 & 63;
+
+         if (isNaN(chr2)) {
+            enc3 = enc4 = 64;
+         } else if (isNaN(chr3)) {
+            enc4 = 64;
+         }
+
+         output = output + 
+            this._keyStr.charAt(enc1) + 
+            this._keyStr.charAt(enc2) + 
+            this._keyStr.charAt(enc3) + 
+            this._keyStr.charAt(enc4);
+         chr1 = chr2 = chr3 = "";
+         enc1 = enc2 = enc3 = enc4 = "";
+      } while (i < input.length);
+
+      return output;
+   }
+}
+///---
+	</script>
+    <body>
+        <h3>Send a message to the GridRF LoRaStation</h3>
+        <div>
+          <ul>Connect State:</ul>
+          <ul id="connectDiv"></ul>
+        </div>
+        <fieldset>
+            <legend>Send</legend>
+             <div>
+               <ul style="width:350px; text-align:right;">
+                 <li>Freq(Mhz):<input type="text" name="freq" style="width:200px;" id="tx_freq" value="433.375" /></li>
+                 <li>Power(db):<input type="text" name="power" style="width:200px;" id="tx_power" value="10" /></li>
+                 <li>Modu:<input type="text" name="modu" style="width:200px;" id="tx_modu" value="LORA" /></li>
+                 <li>Datr:<input type="text" name="datr" style="width:200px;" id="tx_datr" value="SF7BW125" /></li>
+                 <li>Codr:<input type="text" name="codr" style="width:200px;" id="tx_codr" value="4/5" /></li>
+                 <li>Data(String): <input type="text" name="data" style="width:200px;" id="tx_data" value="PING" /></li>
+                </ul>
+                <ul style="text-align:center; width:320px;"> <input type="button" name="sendBtn" id="sendBtn" value="Send" /></ul>
+             </div>            
+        </fieldset>
+        <fieldset>
+            <legend>Recive</legend>
+            <input type="button" name="clearBtn" id="clearBtn" value="ClearAll" />
+            <div id="output">
+            </div>
+        </fieldset>
+        
+        <script type="text/javascript">
+            // Putting the js here after the dom is available in the browser because not using a framework
+            var uri = "ws://"+window.location.host;			
+			var $ = function(obj){
+				return document.getElementById(obj);
+			}
+			
+			
+            var clearBtn = $("clearBtn");
+			clearBtn.onclick = function(){
+                $("output").innerHTML = "";
+            };
+			           
+		    var ws = new WebSocket(uri );
+		   
+            var sendBtn = $("sendBtn");
+
+            sendBtn.onclick = function( evt ){
+                sendMessage();
+            };
+
+            sendBtn.onkeypress = function( evt ){
+                var code = evt.keyCode ? evt.keyCode : evt.which;
+                if( code == 13 )
+                    sendMessage();
+            };
+
+            ws.onmessage = function( evt ){
+				dataToView(evt.data);
+            };
+
+            ws.onerror = function( evt ) { 
+                ConnectStateView( '<i>WebSocket error :(</i>' );
+            };
+
+            ws.onopen = function( evt ) { 
+                ConnectStateView( '<i>Connected</i>' );
+            };
+
+            ws.onclose = function( evt ) { 
+                ConnectStateView( '<i>Disconnected</i>' );
+            };
+
+            function sendMessage( ){
+				var t_freq = $("tx_freq").value;
+				var t_power = $("tx_power").value;
+				var t_modu = $("tx_modu").value;
+				var t_datr = $("tx_datr").value;
+				var t_codr = $("tx_codr").value;
+				var t_dataStr = $("tx_data").value;
+				var bData = Base64Binary.encode(t_dataStr);
+				var txpk = { 'txpk':{ 'imme':true, 'freq':t_freq, 'rfch':0,'powe':t_power,'modu':t_modu,'datr':t_datr,'codr':t_codr,'ipol':true, 'size':t_dataStr.length, 'data':bData} };
+				ws.send(JSON.stringify(txpk));
+            }
+			
+			function ConnectStateView(msg){
+                $('connectDiv').innerHTML = msg; 
+			}
+						
+			function dataToView(msg){
+                var rxpk = JSON.parse(msg);
+				var pkts =rxpk.rxpk;	
+				var pktHtml = "<ul>";
+				
+				for(var i=0;i<pkts.length;i++){
+					var date = new Date(pkts[i].time);
+					pktHtml+="<li>DateTime:"+date.format('yyyy-MM-dd hh:mm:ss')+"</li>";
+					pktHtml+="<li>FREQ: "+pkts[i].freq+"Mhz";
+					pktHtml+=", Modu:"+pkts[i].modu;
+                    pktHtml+=", Datr:"+pkts[i].datr;
+					pktHtml+=", Codr:"+pkts[i].codr;
+					pktHtml+=", Rssi:"+pkts[i].rssi;
+                    pktHtml+=", Lsnr:"+pkts[i].lsnr;
+				    pktHtml+=", Size:"+pkts[i].size;
+				    pktHtml+="</li>";
+					var dataArr = Base64Binary.decode(pkts[i].data);
+					var hexStr = [];
+                    pktHtml+="<li>Data(String):";
+					
+					for ( var i = 0; i < dataArr.length; i++ ) {
+						 hexStr.push(dataArr[i].toString(16));
+						pktHtml+=String.fromCharCode(dataArr[i]);
+					} 
+					
+                    pktHtml+="</li>";
+                    pktHtml+="<li>Data(HEX):"+hexStr;
+                    pktHtml+="</li>";
+				}
+				
+				pktHtml+="</ul>";
+				$("output").innerHTML += pktHtml; 
+			}			
+        </script>
+    </body>
+</html>
+

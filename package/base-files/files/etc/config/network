@@ -1,0 +1,32 @@
+# Copyright (C) 2006 OpenWrt.org
+
+config interface 'loopback'
+	option ifname 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+config globals 'globals'
+	option ula_prefix 'fd0a:317e:5f19::/48'
+
+config interface 'lan'
+	option force_link '1'
+	option macaddr '00:0c:43:e1:76:2a'
+	option type 'bridge'
+	option proto 'static'
+	option netmask '255.255.255.0'
+	option ip6assign '60'
+	option _orig_ifname 'eth0 ra0'
+	option _orig_bridge 'true'
+	option ifname 'eth0 ra0'
+	option ipaddr '192.168.0.1'
+
+config switch
+	option name 'switch0'
+	option reset '1'
+	option enable_vlan '0'
+
+config interface 'wwan'
+	option type 'bridge'
+	option proto 'dhcp'
+	option ifname 'eth0.1 apcli0'

@@ -1,0 +1,84 @@
+#!/bin/sh /etc/rc.common
+# Copyright (c) 2011-2012 OpenWrt.org
+
+START=70
+USE_PROCD=1
+PROG=/usr/bin/lora-station
+
+to_json() {
+	local cfg="$1"
+	config_get gateway_id		"$cfg" gateway_id
+	config_get server_address	"$cfg" server_address
+	config_get serv_port_up		"$cfg" serv_port_up
+	config_get serv_port_down	"$cfg" serv_port_down
+	config_get is_public_network	"$cfg" is_public_network
+	config_get websocket_open	"$cfg" websocket_open
+	config_get websocket_port	"$cfg" websocket_port
+	config_get keepalive_interval	"$cfg" keepalive_interval
+	config_get mode			"$cfg" mode
+	config_get frequency		"$cfg" frequency
+	config_get power		"$cfg" power
+	config_get preamble		"$cfg" preamble
+	config_get datarate		"$cfg" datarate
+	config_get fdev			"$cfg" fdev
+	config_get fsk_bandwidth	"$cfg" fsk_bandwidth
+	config_get afc_bandwidth	"$cfg" afc_bandwidth
+	config_get bandwidth		"$cfg" bandwidth
+	config_get spreading_factor	"$cfg" spreading_factor
+	config_get codingrate		"$cfg" codingrate
+	config_get tx_iqInverted	"$cfg" tx_iqInverted
+
+	json_init
+	json_add_object "server"
+	json_add_string "gateway_id" "$gateway_id"
+	json_add_string "server_address" "$server_address"
+	json_add_int	"serv_port_up" $serv_port_up
+	json_add_int	"serv_port_down" $serv_port_down
+	json_add_boolean "is_public_network" $is_public_network
+	json_add_boolean "websocket_open" $websocket_open
+	json_add_int	"websocket_port" $websocket_port
+	json_add_int	"keepalive_interval" $keepalive_interval
+	json_close_object
+	json_add_object "radio"
+	json_add_string "mode" "$mode"
+	json_add_int	"frequency" $frequency
+	json_add_int	"power" $power
+	json_add_int	"preamble" $preamble
+	json_add_int	"datarate" $datarate
+	json_add_int	"fdev" $fdev
+	json_add_int	"fsk_bandwidth" $fsk_bandwidth
+	json_add_int	"afc_bandwidth" $afc_bandwidth
+	json_add_int	"bandwidth" $bandwidth
+	json_add_int	"spreading_factor" $spreading_factor
+	json_add_int	"codingrate" $codingrate
+	json_add_boolean "tx_iqInverted" $tx_iqInverted
+	json_close_object
+
+	echo "$(json_dump)" > /var/etc/lora-station.json
+}
+
+init_config() {
+	config_load lora-station
+	config_foreach to_json lora-station
+}
+
+reload_service() {
+	init_config
+
+	killall lora-station
+}
+
+start_service(){
+	init_config
+	procd_open_instance
+	procd_set_param command "$PROG"
+	procd_set_param respawn
+	procd_close_instance
+}
+
+service_triggers()
+{
+	procd_add_reload_trigger "lora-station"
+}
+
+
