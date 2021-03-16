@@ -1,0 +1,11 @@
+this is the GL7128 LoRa-station firmware source code, product vist:http://gridrf.com/products/detail/id/3.html
+
+how to build your own firmware?
+1. git clone the openwrt19.07
+2. git clone this source
+3. merge our source to openwrt folder
+4. build just like openwrt
+
+how to setting lora-station service?
+logining to the Gl7128 left menu will have the Sevice item, click it and setting.
+
