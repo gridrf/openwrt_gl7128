@@ -1,25 +1,11 @@
-/*
-Copyright (C) 2018  GridRF Radio Team(tech@gridrf.com)
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
-
 #ifndef __BOARD_H__
 #define __BOARD_H__
 
 #include <unistd.h>
 #include <stdint.h>
+
+#define SOFT_VERSION "v1.3.4"
+#define SOFT_VERSION_DATE "30/11/2018"
 
 #define RADIO_RESET                                 11
 #define RADIO_DIO_0                                 21
@@ -51,6 +37,7 @@ typedef struct
 	uint32_t keepalive_interval;
 	uint32_t frequency;
 	uint32_t tx_freq;
+	int32_t ppm;
 	uint8_t power;
 	uint8_t preamble_length;
 	uint32_t datarate;

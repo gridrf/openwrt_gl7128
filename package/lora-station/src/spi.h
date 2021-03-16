@@ -1,18 +1,21 @@
-/* Copyright (C) 2018  GridRF Radio Team(tech@gridrf.com)
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
+/*
+ * THE FOLLOWING FIRMWARE IS PROVIDED: (1) "AS IS" WITH NO WARRANTY; AND 
+ * (2)TO ENABLE ACCESS TO CODING INFORMATION TO GUIDE AND FACILITATE CUSTOMER.
+ * CONSEQUENTLY, SEMTECH SHALL NOT BE HELD LIABLE FOR ANY DIRECT, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE CONTENT
+ * OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING INFORMATION
+ * CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+ * 
+ * Copyright (C) SEMTECH S.A.
+ */
+/*! 
+ * \file       spi.h
+ * \brief      SPI hardware driver
+ *
+ * \version    1.0
+ * \date       Feb 12 2010
+ * \author     Miguel Luis
+ */
 #ifndef __SPI_H__
 #define __SPI_H__
 

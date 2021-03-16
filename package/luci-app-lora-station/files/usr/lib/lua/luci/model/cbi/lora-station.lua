@@ -64,6 +64,15 @@ frequency.default = '433175000'
 frequency.datatype = "uinteger"
 
 --
+-- radio ppm offset
+--
+frequency = s:taboption("radio", Value,"ppm",translate("ppm offset"), "in Hz")
+frequency.optional = false;
+frequency.rmempty = false;
+frequency.default = '-20000'
+frequency.datatype = "integer"
+
+--
 -- signal strength
 --
 power = s:taboption("radio", Value,"power",translate("Signal Strength"), "in dBm")

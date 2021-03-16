@@ -1,18 +1,3 @@
-/* Copyright (C) 2018  GridRF Radio Team(tech@gridrf.com)
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
 #ifndef __SX1276_H__
 #define __SX1276_H__
 
@@ -32,7 +17,7 @@
 #define XTAL_FREQ                                   32000000 //32000000
 #define FREQ_STEP                                   61.03515625
 
-#define RX_BUFFER_SIZE                              256
+#define RX_BUFFER_SIZE                              255
 
 typedef enum
 {
@@ -144,7 +129,6 @@ private:
 	uint32_t GetTimeOnAir(RadioModems_t modem, uint8_t pktLen);
 	void StartCad(void);
 	int16_t ReadRssi(RadioModems_t modem);
-	void SetMaxPayloadLength(RadioModems_t modem, uint8_t max);
 
 	void SetAntSw(uint8_t opMode);
 	uint8_t GetPaSelect(uint32_t channel);
@@ -180,10 +164,13 @@ public:
 		uint8_t payloadLen,
 		bool crcOn, bool freqHopOn, uint8_t hopPeriod,
 		bool iqInverted, bool rxContinuous);
+	void SetMaxPayloadLength(RadioModems_t modem, uint8_t max);
 
 	void Rx(uint32_t timeout);
 	void Send(uint8_t *buffer, uint8_t size);
 	void Sleep(void) { SetSleep(); };
+
+	void RegisterTimer();
 };
 
 #endif

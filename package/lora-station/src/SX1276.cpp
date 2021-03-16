@@ -1,18 +1,3 @@
-/* Copyright (C) 2018  GridRF Radio Team(tech@gridrf.com)
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
 #include "SX1276.h"
 #include <string.h>
 #include <stdio.h>
@@ -118,10 +103,6 @@ SX1276::~SX1276()
 
 void SX1276::Init()
 {
-	_timer->RegisterTimer(this, &RxTimeoutTimer);
-	_timer->RegisterTimer(this, &TxTimeoutTimer);
-	_timer->RegisterTimer(this, &RxTimeoutSyncWord);
-
 	this->Reset();
 	this->RxChainCalibration();
 	this->SetOpMode(RF_OPMODE_SLEEP);
@@ -138,6 +119,13 @@ void SX1276::Init()
 	//printf("SX1276::Init\n");
 }
 
+
+void SX1276::RegisterTimer()
+{
+	_timer->RegisterTimer(this, &RxTimeoutTimer);
+	_timer->RegisterTimer(this, &TxTimeoutTimer);
+	_timer->RegisterTimer(this, &RxTimeoutSyncWord);
+}
 
 void SX1276::SetChannel(uint32_t freq)
 {
@@ -238,7 +226,7 @@ void SX1276::RxChainCalibration(void)
 	}
 
 	// Sets a Frequency in HF band
-	SetChannel(434000000);
+	SetChannel(868000000);
 
 	// Launch Rx chain calibration for HF band
 	WriteReg(REG_IMAGECAL, (ReadReg(REG_IMAGECAL) & RF_IMAGECAL_IMAGECAL_MASK) | RF_IMAGECAL_IMAGECAL_START);
@@ -1735,6 +1723,9 @@ void SX1276::SetRfTxPower(int8_t power)
 
 uint8_t SX1276::GetPaSelect(uint32_t channel)
 {
+//BOOST always!
+	return RF_PACONFIG_PASELECT_PABOOST;
+/*
 	if (channel < RF_MID_BAND_THRESH)
 	{
 		return RF_PACONFIG_PASELECT_PABOOST;
@@ -1743,6 +1734,7 @@ uint8_t SX1276::GetPaSelect(uint32_t channel)
 	{
 		return RF_PACONFIG_PASELECT_RFO;
 	}
+*/
 }
 
 void SX1276::SetAntSw(uint8_t opMode)

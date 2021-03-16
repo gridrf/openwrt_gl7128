@@ -1,19 +1,3 @@
-/*
-Copyright (C) 2018  GridRF Radio Team(tech@gridrf.com)
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -26,7 +10,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "board.h"
 #include "PacketForwarder.h"
 #include "LoRaWebSocket.h"
-#include "json.h"
+#include "json-c/json.h"
 #include "MessagerHandler.h"
 
 #ifdef _WIN32
@@ -42,34 +26,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define DEFAULT_MAC_ADDR "70188B0CA611"
 
 
-#define RF_FREQUENCY                                433175000 // Hz
-#define TX_OUTPUT_POWER                             0         // dBm
-#define LORA_BANDWIDTH                              0         // [0: 125 kHz,
-//  1: 250 kHz,
-//  2: 500 kHz,
-//  3: Reserved]
-#define LORA_SPREADING_FACTOR                       7         // [SF7..SF12]
-#define LORA_CODINGRATE                             1         // [1: 4/5,
-//  2: 4/6,
-//  3: 4/7,
-//  4: 4/8]
-#define LORA_PREAMBLE_LENGTH                        8         // Same for Tx and Rx
-#define LORA_SYMBOL_TIMEOUT                         5         // Symbols
-#define LORA_FIX_LENGTH_PAYLOAD_ON                  false
-#define LORA_IQ_INVERSION_ON                        false
-
-#define FSK_FDEV                                    25000     // Hz
-#define FSK_DATARATE                                50000     // bps
-#define FSK_BANDWIDTH                               50000     // Hz
-#define FSK_AFC_BANDWIDTH                           83333     // Hz
-#define FSK_PREAMBLE_LENGTH                         5         // Same for Tx and Rx
-#define FSK_FIX_LENGTH_PAYLOAD_ON                   false
-
 
 bool LoadConfig(LoRa_Config *conf)
 {
-	json_object *server_conf;
-	json_object *radio_conf;
+	json_object *server_conf = NULL;
+	json_object *radio_conf = NULL;
 	json_object *value = NULL;
 	json_object *root = json_object_from_file(CONFIG_FILE);
 
@@ -78,6 +39,7 @@ bool LoadConfig(LoRa_Config *conf)
         conf->websocket_open = false;
 	conf->frequency = RF_FREQUENCY;
 	conf->power = TX_OUTPUT_POWER;
+	conf->ppm = RF_PPM_OFFSET;
 	conf->preamble_length = LORA_PREAMBLE_LENGTH;
 	conf->fdev = FSK_FDEV;
 	conf->datarate = FSK_DATARATE;
@@ -137,6 +99,7 @@ bool LoadConfig(LoRa_Config *conf)
 		}
 	}
 	else {
+		json_object_put(root);
 		return false;
 	}
 
@@ -151,6 +114,9 @@ bool LoadConfig(LoRa_Config *conf)
 		if (json_object_object_get_ex(radio_conf, "frequency", &value)) {
 			conf->frequency = json_object_get_int64(value);
 			conf->tx_freq = conf->frequency;
+		}
+		if (json_object_object_get_ex(radio_conf, "ppm", &value)) {
+			conf->ppm = json_object_get_int64(value);
 		}
 		if (json_object_object_get_ex(radio_conf, "power", &value)) {
 			conf->power = json_object_get_int(value);
@@ -182,6 +148,8 @@ bool LoadConfig(LoRa_Config *conf)
 		if (json_object_object_get_ex(radio_conf, "tx_iqInverted", &value)) {
 			conf->tx_iqInverted = json_object_get_boolean(value);
 		}
+
+		json_object_put(root);
 		return true;
 	}
 
@@ -190,25 +158,22 @@ bool LoadConfig(LoRa_Config *conf)
 
 int main(void)
 {
-/*
-	//radio test
+	LoRa_Config _conf;
+
+	LoadConfig(&_conf);
 	gpio_init();
 	SpiInit();
+/*
+	//radio test
 	gpio_setdirecton(RADIO_RTX, 1);
 	gpio_setdirecton(RADIO_RESET, 1);
-	Radio *radio = new Radio();
+	Radio *radio = new Radio(&_conf);
 	TimerEvent *timer = new TimerEvent();
 	SX1276 *sx1276 = new SX1276(radio, timer);
 	radio->Init(sx1276);
 	sx1276->Init();
 	sx1276->SetTxContinuousWave(433000000, 20, 10);
 */
-	LoRa_Config _conf;
-
-	LoadConfig(&_conf);
-
-	gpio_init();
-	SpiInit();
 	gpio_setdirecton(RADIO_RTX, 1);
 	gpio_setdirecton(RADIO_RESET, 1);
 
@@ -216,8 +181,9 @@ int main(void)
 	Radio *radio = new Radio(&_conf);
 	TimerEvent *timer = new TimerEvent();
 	SX1276 *sx1276 = new SX1276(radio, timer);
-        LoRaWebSocket *webSocket = NULL;
-	MessagerHandler *msgHandler = new MessagerHandler(&_conf, sx1276, timer);
+	sx1276->RegisterTimer();
+    LoRaWebSocket *webSocket = NULL;
+	MessagerHandler *msgHandler = new MessagerHandler(&_conf, sx1276, radio, timer);
 
 	GPIOControl *dioEvt[5];
 	for(int i=0;i<5;i++){
@@ -235,37 +201,8 @@ int main(void)
         }
 
 	radio->Init(sx1276);
-	sx1276->Init();
-	sx1276->SetChannel(_conf.frequency);
-
-	if(_conf.is_public_network){
-		sx1276->SetPublicNetwork( true );
-	}
-
-	if (_conf.modem == 0) {
-		sx1276->SetTxConfig(MODEM_LORA, _conf.power, 0, _conf.bandwidth,
-			_conf.spreading_factor, _conf.codingrate,
-			_conf.preamble_length, LORA_FIX_LENGTH_PAYLOAD_ON,
-			true, 0, 0, _conf.tx_iqInverted, 3000);
-
-		sx1276->SetRxConfig(MODEM_LORA, _conf.bandwidth, _conf.spreading_factor,
-			_conf.codingrate, 0, _conf.preamble_length,
-			LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
-			0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
-	}
-	else {
-		sx1276->SetTxConfig(MODEM_FSK, _conf.power, _conf.fdev, 0,
-			_conf.datarate, 0,
-			_conf.preamble_length, FSK_FIX_LENGTH_PAYLOAD_ON,
-			true, 0, 0, 0, 3000);
-
-		sx1276->SetRxConfig(MODEM_FSK, _conf.fsk_bandwidth, _conf.datarate, 0,
-			_conf.afc_bandwidth, _conf.preamble_length,
-			0, FSK_FIX_LENGTH_PAYLOAD_ON, 0, true,
-			0, 0, false, false);
-	}
-
-	sx1276->Rx(0);
+	radio->chipReset();
+	
 
 	while (1)
 	{
@@ -278,6 +215,7 @@ int main(void)
 	delete(pkfw);
 	if(_conf.websocket_open){
 	   delete(webSocket);
+	   webSocket = NULL;
 	}
 
 	delete(msgHandler);

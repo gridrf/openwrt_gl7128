@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 
 PKG_NAME:=lora-station
-PKG_VERSION:=2017-9-15
+PKG_VERSION:=2021-03-06
 PKG_RELEASE:=1
 
 PKG_LICENSE:=LGPL-2.1
@@ -46,7 +46,7 @@ define Package/lora-station/install
 	$(INSTALL_DIR) $(1)/usr/share/websocket
 	$(INSTALL_DATA) ./files/index.html $(1)/usr/share/websocket/index.html
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/lora-station.init $(1)/etc/init.d/lora-station
+	$(INSTALL_BIN) ./files/lora-station.init $(1)/etc/init.d/lora
 endef
 
 $(eval $(call BuildPackage,lora-station))

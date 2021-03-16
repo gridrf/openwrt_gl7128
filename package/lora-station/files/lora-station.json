@@ -10,6 +10,7 @@
 	"radio":{
 		"mode":"LORA",
 		"frequency":433175000,
+		"ppm":-20000,
 		"power":10,
 		"preamble":8,
 		"datarate":50000,

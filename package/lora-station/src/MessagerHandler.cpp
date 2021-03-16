@@ -1,19 +1,3 @@
-/*
-Copyright (C) 2018  GridRF Radio Team(tech@gridrf.com)
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
 #include "MessagerHandler.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +5,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string>
 #include <time.h>
 #include "Packet.h"
-#include "json.h"
+#include "json-c/json.h"
 
 using namespace std;
 
@@ -49,8 +33,8 @@ int gettimeofday(struct timeval *tp, void *tzp)
 
 #endif
 
-MessagerHandler::MessagerHandler(LoRa_Config *conf, ILoRaChip *chip, TimerEvent *timer)
-	:_conf(conf), _chip(chip), _timer(timer)
+MessagerHandler::MessagerHandler(LoRa_Config *conf, ILoRaChip *chip, IRadio *radio, TimerEvent *timer)
+	:_conf(conf), _chip(chip), _radio(radio), _timer(timer)
 {
 	if (_conf->modem == 0) {
 		modem = MODEM_LORA;
@@ -91,7 +75,7 @@ uint64_t MessagerHandler::UTCTime()
 	if (gettimeofday(&tv, NULL) != 0)
 		return 0;
 
-	return ((uint64_t)tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+	return ((uint64_t)tv.tv_sec * 1000000) + tv.tv_usec;
 	//#endif
 }
 
@@ -121,13 +105,13 @@ void MessagerHandler::OnPacket(uint8_t *buffer, int size, int16_t rssi, int8_t s
 	uint16_t token = NowTime(utcTime);
 	rxpkt.WriteString("{\"rxpk\":[");
 
-	time_t now = utcTime / 1000;
+	time_t now = utcTime / 1000000;
 	tm *now_tm = gmtime(&now);
 	rxpkt.WriteStringFmt("{\"time\":\"%04i-%02i-%02iT%02i:%02i:%02i.%03liZ\",", (now_tm->tm_year) + 1900, (now_tm->tm_mon) + 1, now_tm->tm_mday, now_tm->tm_hour,
 		now_tm->tm_min, now_tm->tm_sec, utcTime % 1000);
 
 
-	rxpkt.WriteStringFmt("\"tmst\":%ld,", utcTime - epoch);
+	rxpkt.WriteStringFmt("\"tmst\":%llu,", utcTime - epoch);
 	rxpkt.WriteString("\"chan\" : 0,");
 	rxpkt.WriteString("\"rfch\" : 0,");
 	rxpkt.WriteStringFmt("\"freq\":%f,", _conf->frequency / 1000000.0);
@@ -152,7 +136,7 @@ void MessagerHandler::OnPacket(uint8_t *buffer, int size, int16_t rssi, int8_t s
 	rxpkt.WriteStringFmt("\"data\" : \"%s\"", temp);
 	rxpkt.WriteString("}]}\0");
 
-	std::list<IMessager*>::const_iterator it = msgQueue.begin();
+	std::vector<IMessager*>::const_iterator it = msgQueue.begin();
 	for (; it != msgQueue.end(); it++) {
 		(*it)->OnPacket(token, rxpkt.GetBuffer(), rxpkt.GetLength());
 	}
@@ -162,21 +146,22 @@ void MessagerHandler::OnTxPacket(const char *txpk)
 {
 	json_object *root = json_tokener_parse(txpk);
 	if (root != NULL) {
-		json_object *txJson;
+		json_object *txJson = NULL;
 		if (json_object_object_get_ex(root, "txpk", &txJson)) {
-			json_object *value;
+			json_object *value = NULL;
 			const char *modu = NULL;
 			const char *datr = NULL;
 			const char *codr = NULL;
 			const char *data = NULL;
 
-			RadioMessage *msg = new RadioMessage();
+			RadioMessage LoraPkt = {0};
+			RadioMessage *msg = &LoraPkt;
 
 			if (json_object_object_get_ex(txJson, "imme", &value)) {
 				msg->imme = json_object_get_boolean(value);
 			}
 			if (json_object_object_get_ex(txJson, "tmst", &value)) {
-				msg->tmst = json_object_get_int(value);
+				msg->tmst = json_object_get_int64(value);
 			}
 			if (json_object_object_get_ex(txJson, "freq", &value)) {
 				msg->freq = 1000000 * json_object_get_double(value);
@@ -248,51 +233,73 @@ void MessagerHandler::OnTxPacket(const char *txpk)
 				msg->codingrate -= 4;
 			}
 
-			uint8_t *loraData = msg->data;
+			//uint8_t *loraData = msg->data;
 
-			msg->size = base64.b64_to_bin(data, strlen(data), loraData, 256);
+			msg->size = base64.b64_to_bin(data, strlen(data), msg->data, 256);
 			if (msg->size > 0) {
 				if (_chip != NULL) {
 					if (msg->imme) {
 						if (_conf->frequency != msg->freq) {
 							_conf->tx_freq = msg->freq;
-							_chip->SetChannel(msg->freq);
+							_chip->SetChannel(msg->freq+_conf->ppm);
 						}
 
 						if (_conf->power != msg->powe) {
 							_chip->SetRfTxPower(msg->powe);
 						}
-						_chip->Send(loraData, msg->size);
-						delete(msg);
+						_chip->Send(msg->data, msg->size);
+						//printf("SendRF to Node immediately.\n");
+						//delete(msg);
 					}
 					else {
-						uint32_t expireDate = this->UTCTime() - epoch;
+						uint64_t expireDate = this->UTCTime() - epoch;
 						if(expireDate > msg->tmst){
-						     //printf("expire %d , tmst %d drop packet!\n", expireDate, msg->tmst);
-						     return;
+						     printf("expire %d , tmst %d drop packet!\n", expireDate, msg->tmst);
+						    // return;
 						}else{
-							msg->sendTimeoutTimer.user = msg;
-							_timer->RegisterTimer(this, &msg->sendTimeoutTimer);
-							_timer->TimerSetValue(&msg->sendTimeoutTimer, (uint32_t)(msg->tmst - expireDate));
-							_timer->TimerStart(&msg->sendTimeoutTimer);
-							//printf("timer packet:%d\n", msg->tmst - expireDate);
+							RadioMessage *packet = new RadioMessage();
+							packet->freq = msg->freq;
+							packet->powe = msg->powe;
+							packet->imme = msg->imme;
+							packet->ipol = msg->ipol;
+							packet->tmst = msg->tmst;
+							packet->rfch = msg->rfch;
+							packet->size = msg->size;
+							packet->model= msg->model;
+							packet->spreading_factor= msg->spreading_factor;
+							packet->bandwidth= msg->bandwidth;
+							packet->codingrate= msg->codingrate;
+
+							memcpy(packet->data, msg->data, sizeof(msg->data));
+
+							packet->sendTimeoutTimer.user = packet;
+							_timer->RegisterTimer(this, &packet->sendTimeoutTimer);
+							_timer->TimerSetValue(&packet->sendTimeoutTimer, (uint64_t)(packet->tmst - expireDate) / 1000);
+							_timer->TimerStart(&packet->sendTimeoutTimer);
+
+							printf("timer packet:%d\n", packet->tmst - expireDate);
 						}
 					}
 				}
-				//printf("SendRF to Node\n");
+				//printf("SendRF to Node.\n");
 			}
+		}else if (json_object_object_get_ex(root, "module_reset", &txJson)) {
+			_radio->chipReset();
+			printf("RESET Radio.\n");
 		}
+
+	    json_object_put(root);
 	}
 }
 
 
 bool MessagerHandler::OnTimeoutIrq(void *user)
 {
-	//printf("ontimer irq:%d\n", this->UTCTime() - epoch);
+	printf("ontimer irq:%d\n", this->UTCTime() - epoch);
 	RadioMessage *userMsg = (RadioMessage *)user;
 	if (_conf->frequency != userMsg->freq) {
 		_conf->tx_freq = userMsg->freq;
-		_chip->SetChannel(userMsg->freq);
+		_chip->SetChannel(userMsg->freq+_conf->ppm);
 	}
 
 	if (_conf->power != userMsg->powe) {
@@ -302,6 +309,6 @@ bool MessagerHandler::OnTimeoutIrq(void *user)
 	_timer->RemoveTimer(&userMsg->sendTimeoutTimer);
 	delete(userMsg);
 	
-	//printf("ontimer irq finish!\n");
+	printf("ontimer irq finish!\n");
 	return false;
 }

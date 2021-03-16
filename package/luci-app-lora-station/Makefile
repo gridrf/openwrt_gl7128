@@ -19,7 +19,7 @@ define Package/luci-app-lora-station
 	SUBMENU:=3. Applications
 	TITLE:=GridRF LoRa Staion Configuration Interface
 	PKGARCH:=all
-	DEPENDS:=lora-station
+	DEPENDS:=lora-station luci luci-base luci-compat
 endef
 
 define Build/Compile

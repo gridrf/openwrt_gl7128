@@ -18,6 +18,7 @@ to_json() {
 	config_get mode			"$cfg" mode
 	config_get frequency		"$cfg" frequency
 	config_get power		"$cfg" power
+	config_get ppm			"$cfg" ppm
 	config_get preamble		"$cfg" preamble
 	config_get datarate		"$cfg" datarate
 	config_get fdev			"$cfg" fdev
@@ -42,6 +43,7 @@ to_json() {
 	json_add_object "radio"
 	json_add_string "mode" "$mode"
 	json_add_int	"frequency" $frequency
+	json_add_int	"ppm" $ppm
 	json_add_int	"power" $power
 	json_add_int	"preamble" $preamble
 	json_add_int	"datarate" $datarate

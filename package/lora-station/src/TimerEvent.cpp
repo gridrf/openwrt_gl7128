@@ -1,19 +1,3 @@
-/*
-Copyright (C) 2018  GridRF Radio Team(tech@gridrf.com)
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
 #include "TimerEvent.h"
 #include <stdio.h>
 #include <time.h>
@@ -26,6 +10,7 @@ TimerEvent::TimerEvent()
 
 TimerEvent::~TimerEvent()
 {
+	timerEvents.clear();
 }
 
 void TimerEvent::Process(void)
@@ -68,6 +53,14 @@ void TimerEvent::RegisterTimer(TimerHandler *handler, TimerEvent_t *obj)
 	obj->ReloadValue = 0;
 	obj->IsRunning = false;
 	obj->handler = handler;
+
+	std::list<TimerEvent_t *>::const_iterator it = timerEvents.begin();
+	for (; it != timerEvents.end(); it++)
+	{
+		if ((*it) == obj) {
+			return;
+		}
+	}
 
 	timerEvents.push_back(obj);
 	//printf("RegisterTimer = %d\n", TimerGetElapsedTime(startTime));

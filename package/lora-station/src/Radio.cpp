@@ -1,22 +1,8 @@
-/* Copyright (C) 2018  GridRF Radio Team(tech@gridrf.com)
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
 #include "Radio.h"
 #include <string.h>
 #include "board.h"
 #include <stdio.h>
+
 
 
 Radio::Radio(LoRa_Config *conf)
@@ -38,8 +24,47 @@ void Radio::Init(ILoRaChip *chip)
 	_chip = chip;
 }
 
+void Radio::chipReset(void)
+{
+	_chip->Init();
+	_chip->SetChannel(_conf->frequency + _conf->ppm);
+
+	if(_conf->is_public_network){
+		_chip->SetPublicNetwork( true );
+	}
+
+	if (_conf->modem == 0) {
+		_chip->SetTxConfig(MODEM_LORA, _conf->power, 0, _conf->bandwidth,
+			_conf->spreading_factor, _conf->codingrate,
+			_conf->preamble_length, LORA_FIX_LENGTH_PAYLOAD_ON,
+			true, 0, 0, _conf->tx_iqInverted, 3000);
+
+		_chip->SetRxConfig(MODEM_LORA, _conf->bandwidth, _conf->spreading_factor,
+			_conf->codingrate, 0, _conf->preamble_length,
+			LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
+			0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
+
+		
+	  	_chip->SetMaxPayloadLength(MODEM_LORA, BUFFER_SIZE);
+	}
+	else {
+		_chip->SetTxConfig(MODEM_FSK, _conf->power, _conf->fdev, 0,
+			_conf->datarate, 0,
+			_conf->preamble_length, FSK_FIX_LENGTH_PAYLOAD_ON,
+			true, 0, 0, 0, 3000);
+
+		_chip->SetRxConfig(MODEM_FSK, _conf->fsk_bandwidth, _conf->datarate, 0,
+			_conf->afc_bandwidth, _conf->preamble_length,
+			0, FSK_FIX_LENGTH_PAYLOAD_ON, 0, true,
+			0, 0, false, false);
+	  	_chip->SetMaxPayloadLength(MODEM_FSK, BUFFER_SIZE);
+	}
+	_chip->Rx(0);
+}
+
 void Radio::OnTxDone(void)
 {
+	printf("OnTxDone\n");
 	_chip->Sleep();
 	State = TX;
 }
@@ -57,6 +82,7 @@ void Radio::OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr)
 
 void Radio::OnTxTimeout(void)
 {
+	printf("OnTxTimeout\n");
 	_chip->Sleep();
 	State = TX_TIMEOUT;
 }
@@ -101,25 +127,26 @@ void Radio::Process(MessagerHandler *handler)
 		{
 			if(_conf->tx_freq != _conf->frequency){
 				_conf->tx_freq = _conf->frequency;				
-				_chip->SetChannel(_conf->frequency);
+				_chip->SetChannel(_conf->frequency+_conf->ppm);
 			}
 			_chip->Rx(0);
 			State = LOWPOWER;
 			break;
 		}
+	case TX_TIMEOUT:
 	case RX_TIMEOUT:
 	case RX_ERROR:
-		_chip->Rx(0);
-		State = LOWPOWER;
-		break;
-	case TX_TIMEOUT:
-		_chip->Rx(0);
-		State = LOWPOWER;
-		break;
+		{
+			this->chipReset();
+			State = LOWPOWER;
+			break;
+		}
 	case LOWPOWER:
 	default:
 		// Set low power
 		break;
 	}
 }
+
+
 

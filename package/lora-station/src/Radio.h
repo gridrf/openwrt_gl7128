@@ -1,18 +1,3 @@
-/* Copyright (C) 2018  GridRF Radio Team(tech@gridrf.com)
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
 #ifndef __RADIO_H__
 #define __RADIO_H__
 
@@ -20,9 +5,36 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "RadioEvent.h"
 #include "ILoRaChip.h"
 #include "MessagerHandler.h"
+#include "IRadio.h"
 
-#define BUFFER_SIZE                                 64 // Define the payload size here
+#define BUFFER_SIZE                                 255 // Define the payload size here
 #define RX_TIMEOUT_VALUE                            1000
+
+
+#define RF_FREQUENCY                                433175000 // Hz
+#define RF_PPM_OFFSET                               -20000 // Hz
+#define TX_OUTPUT_POWER                             0         // dBm
+#define LORA_BANDWIDTH                              0         // [0: 125 kHz,
+//  1: 250 kHz,
+//  2: 500 kHz,
+//  3: Reserved]
+#define LORA_SPREADING_FACTOR                       7         // [SF7..SF12]
+#define LORA_CODINGRATE                             1         // [1: 4/5,
+//  2: 4/6,
+//  3: 4/7,
+//  4: 4/8]
+#define LORA_PREAMBLE_LENGTH                        8         // Same for Tx and Rx
+#define LORA_SYMBOL_TIMEOUT                         5         // Symbols
+#define LORA_FIX_LENGTH_PAYLOAD_ON                  false
+#define LORA_IQ_INVERSION_ON                        false
+
+#define FSK_FDEV                                    25000     // Hz
+#define FSK_DATARATE                                50000     // bps
+#define FSK_BANDWIDTH                               50000     // Hz
+#define FSK_AFC_BANDWIDTH                           83333     // Hz
+#define FSK_PREAMBLE_LENGTH                         5         // Same for Tx and Rx
+#define FSK_FIX_LENGTH_PAYLOAD_ON                   false
+
 
 typedef enum
 {
@@ -34,7 +46,7 @@ typedef enum
 	TX_TIMEOUT,
 }States_t;
 
-class Radio:public RadioEvent
+class Radio:public RadioEvent, public IRadio
 {
 private:
 	States_t State;
@@ -52,7 +64,7 @@ public:
 	~Radio();
 
 	void Init(ILoRaChip *chip);
-
+	void chipReset(void);
 	void OnTxDone(void);
 	void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr);
 	void OnTxTimeout(void);
@@ -65,3 +77,4 @@ public:
 };
 
 #endif
+
